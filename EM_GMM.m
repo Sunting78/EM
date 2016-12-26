@@ -1,86 +1,7 @@
-function [W,M,V,L] = EM_GM_fast(X,k,ltol,maxiter,pflag,Init)
-% [W,M,V,L] = EM_GM_fast(X,k,ltol,maxiter,pflag,Init) 
-% 
-% EM algorithm for k multidimensional Gaussian mixture estimation
-% (EM_GM_fast is the modified version of EM_GM for speed enchancement.
-%  The functionalities of EM_GM_fast and EM_GM are identical.)
-%
-% Note: EM_GM_fast requires more memory than EM_GM to execute.
-%       If EM_GM_fast does not provide any speed gain or is slower than EM_GM,
-%       more memory is needed or EM_GM should be used instead.
-%
-% Inputs:
-%   X(n,d) - input data, n=number of observations, d=dimension of
-%   variable输入数据 n是观察的数量 d是变量的维度
-%   k - maximum number of Gaussian components allowed 高斯函数个数
-%   ltol - percentage of the log likelihood difference between 2 iterations
-%   ([] for none)两次迭代的最大似然差
-%   maxiter - maximum number of iteration allowed ([] for none)最大迭代次数
-%   pflag - 1 for plotting GM for 1D or 2D cases only, 0 otherwise ([] for
-%   none)1是一维或者二维情况
-%   Init - structure of initial W, M, V: Init.W, Init.M, Init.V ([] for none)
-%
-% Ouputs:
-%   W(1,k) - estimated weights of GM权重
-%   M(d,k) - estimated mean vectors of GM k列均值
-%   V(d,d,k) - estimated covariance matrices of GM k个GM的协方差矩阵 每个是d*d的
-%   L - log likelihood of estimates L是最大似然估计值
-%
-% Written by
-%   Patrick P. C. Tsui,
-%   PAMI research group
-%   Department of Electrical and Computer Engineering
-%   University of Waterloo, 
-%   March, 2006
-%
-%   Michael Boedigheimer
-%   Amgen
-%   Dept of Computational Biology
-%   Thousand Oaks CA, 91320
-%   Dec, 2005
-% 
+function [weights,means,vars]=EM_GMM(data,k,initial,maxIter)
 
-%%%% Validate inputs %%%%
 if nargin <= 1,
-    disp('EM_GM must have at least 2 inputs: X,k!/n')
-    return
-elseif nargin == 2,
-    ltol = 0.1; maxiter = 1000; pflag = 0; Init = [];
-    err_X = Verify_X(X);
-    err_k = Verify_k(k);
-    if err_X | err_k, return; end
-elseif nargin == 3,
-    maxiter = 1000; pflag = 0; Init = [];
-    err_X = Verify_X(X);
-    err_k = Verify_k(k);
-    [ltol,err_ltol] = Verify_ltol(ltol);    
-    if err_X | err_k | err_ltol, return; end
-elseif nargin == 4,
-    pflag = 0;  Init = [];
-    err_X = Verify_X(X);
-    err_k = Verify_k(k);
-    [ltol,err_ltol] = Verify_ltol(ltol);    
-    [maxiter,err_maxiter] = Verify_maxiter(maxiter);
-    if err_X | err_k | err_ltol | err_maxiter, return; end
-elseif nargin == 5,
-     Init = [];
-    err_X = Verify_X(X);
-    err_k = Verify_k(k);
-    [ltol,err_ltol] = Verify_ltol(ltol);    
-    [maxiter,err_maxiter] = Verify_maxiter(maxiter);
-    [pflag,err_pflag] = Verify_pflag(pflag);
-    if err_X | err_k | err_ltol | err_maxiter | err_pflag, return; end
-elseif nargin == 6,
-    err_X = Verify_X(X);
-    err_k = Verify_k(k);
-    [ltol,err_ltol] = Verify_ltol(ltol);    
-    [maxiter,err_maxiter] = Verify_maxiter(maxiter);
-    [pflag,err_pflag] = Verify_pflag(pflag);
-    [Init,err_Init]=Verify_Init(Init);
-    if err_X | err_k | err_ltol | err_maxiter | err_pflag | err_Init, return; end
-else
-    disp('EM_GM must have 2 to 6 inputs!');
-    return
+    disp('EM_GM must have 4 inputs!/n')
 end
 
 %%%% Initialize W, M, V,L %%%%
@@ -88,9 +9,9 @@ t = cputime;
 if isempty(Init),  
     [W,M,V] = Init_EM(X,k); L = 0;    
 else
-    W = Init.W;
-    M = Init.M;
-    V = Init.V;
+    W = initial.W;
+    M = initial.M;
+    V = initial.V;
 end
 Ln = Likelihood(X,k,W,M,V); % Initialize log likelihood
 Lo = 2*Ln;
