@@ -43,11 +43,13 @@ V1(1,1,1)=15;
 V1(1,1,2)=10;
 V1(1,1,3)=10;
 V1(1,1,4)=20;
-s.weight=W1;
+s.wight=W1;
 s.mean=M1;
-s.var=V1;
-
-[W,M,V] = EM_GMM(double(i),4,s,100);
+s.v=V1;
+wight  = initial.weight;
+mean   = initial.mean;
+var    = initial.var;
+[W,M,V,L] = EM_GM_fast(double(i),4,[],100,1,s);
 
 for i=1:h
     for j=1:w

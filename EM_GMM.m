@@ -1,73 +1,51 @@
-function [weights,means,vars]=EM_GMM(data,k,initial,maxIter)
+function  [wight,mean,var]=EM_GMM(data,k,initial,maxIter)
 
 if nargin <= 1,
-    disp('EM_GM must have 4 inputs!/n')
+    disp('EM_GMM must have 4 inputs!/n')
 end
 
-%%%% Initialize W, M, V,L %%%%
-t = cputime;
-if isempty(Init),  
-    [W,M,V] = Init_EM(X,k); L = 0;    
-else
-    W = initial.W;
-    M = initial.M;
-    V = initial.V;
-end
-Ln = Likelihood(X,k,W,M,V); % Initialize log likelihood
+%%%% 初始化 %%%%
+wight  = initial.weight;
+mean   = initial.mean;
+var    = initial.var;
+
+Ln = Likelihood(data,k,wight,mean,var);
 Lo = 2*Ln;
+threshold = 0.3;%收敛停止的阈值
+%%%% EM %%%%
 
-%%%% EM algorithm %%%%
-niter = 0;
-while (abs(100*(Ln-Lo)/Lo)>ltol) & (niter<=maxiter),
-    E = Expectation(X,k,W,M,V);     % E-step
-    [W,M,V] = Maximization(X,k,E);  % M-step
-    Lo = Ln;
-    Ln = Likelihood(X,k,W,M,V);
-    niter = niter + 1;
-end 
-L = Ln;
+for ithIther = 1:maxIter
+    
+    if (abs((Ln-Lo)/Lo)>threshold)
+        
+        expection = Expectation(data,k,wight,mean,var);     % E-step
+        [wight,mean,var] = Maximization(data,k,expection);  % M-step
+        Lo = Ln;
+        Ln = Likelihood(data,k,wight,mean,var);
 
-%%%% Plot 1D or 2D %%%%
-if pflag==1,
-    [n,d] = size(X);
-    if d>2,
-        disp('Can only plot 1 or 2 dimensional applications!/n');
-    else
-        Plot_GM(X,k,W,M,V);
     end
-    elapsed_time = sprintf('CPU time used for EM_GM: %5.2fs',cputime-t);
-    disp(elapsed_time); 
-    disp(sprintf('Number of iterations: %d',niter-1));
+    disp(sprintf('Number of iterations: %d',ithIther-1));
 end
-%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of EM_GM %%%%
-%%%%%%%%%%%%%%%%%%%%%%
+
+% L = Ln;
+    Plot_GM(data,k,wight,mean,var);
+
+
+
 
 function E = Expectation(X,k,W,M,V)
-% This function is the modification of 'Expectation' in EM_GM made by 
-% Mr. Michael Boedigheimer to enchance computational speed.
-% Note: this modification requires more memory to execute.
-%       If EM_GM_fast does not provide any speed gain or is slower than EM_GM,
-%       more memory is needed or EM_GM should be used instead.
-[n,d] = size(X);
+
+[n,~] = size(X);
 E = zeros(n,k);
-for j = 1:k,
-    if V(:,:,j)==zeros(d,d),
-        V(:,:,j)=ones(d,d)*eps; end
-    E(:,j) = W(j).*mvnpdf( X, M(:,j)', V(:,:,j));%出错 每个点属于k个高斯分布的概率
+for j = 1:k
+    E(:,j) = W(j).*normpdf( X, M(:,j)', V(:,:,j));% 每个点属于k个高斯分布的概率
 end
 total = repmat(sum(E,2),1,j);
 E = E./total;%每行除以行和 一行一个样本
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Expectation %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 function [W,M,V] = Maximization(X,k,E)
-% This function is the modification of 'Maximization' in EM_GM made by 
-% Mr. Michael Boedigheimer to enchance computational speed.
-% Note: this modification requires more memory to execute.
-%       If EM_GM_fast does not provide any speed gain or is slower than EM_GM,
-%       more memory is needed or EM_GM should be used instead.
+
 [n,d] = size(X);
 W = sum(E);
 M = X'*E./repmat(W,d,1);
@@ -77,13 +55,10 @@ for i=1:k,
     V(:,:,i) = dXM'*Wsp*dXM/W(i);
 end
 W = W/n;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Maximization %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 function L = Likelihood(X,k,W,M,V)
-% Compute L based on K. V. Mardia, "Multivariate Analysis", Academic Press, 1979, PP. 96-97
-% to enchance computational speed
+
 [n,d] = size(X);
 U = mean(X)';
 S = cov(double(X));
@@ -93,128 +68,12 @@ for i=1:k,
     L = L + W(i)*(-0.5*n*log(det(2*pi*V(:,:,i))) ...
         -0.5*(n-1)*(trace(iV*S)+(U-M(:,i))'*iV*(U-M(:,i))));
 end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Likelihood %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function err_X = Verify_X(X)
-err_X = 1;
-[n,d] = size(X);
-if n<d,
-    disp('Input data must be n x d!/n');
-    return
-end
-err_X = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Verify_X %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function err_k = Verify_k(k)
-err_k = 1;
-if ~isnumeric(k) | ~isreal(k) | k<1,
-    disp('k must be a real integer >= 1!/n');
-    return
-end
-err_k = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Verify_k %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [ltol,err_ltol] = Verify_ltol(ltol)
-err_ltol = 1;
-if isempty(ltol),
-    ltol = 0.1;
-elseif ~isreal(ltol) | ltol<=0,
-    disp('ltol must be a positive real number!');
-    return
-end
-err_ltol = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Verify_ltol %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [maxiter,err_maxiter] = Verify_maxiter(maxiter)
-err_maxiter = 1;
-if isempty(maxiter),
-    maxiter = 1000;
-elseif ~isreal(maxiter) | maxiter<=0,
-    disp('ltol must be a positive real number!');
-    return
-end
-err_maxiter = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Verify_maxiter %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [pflag,err_pflag] = Verify_pflag(pflag)
-err_pflag = 1;
-if isempty(pflag),
-    pflag = 0;
-elseif pflag~=0 & pflag~=1,
-    disp('Plot flag must be either 0 or 1!/n');
-    return
-end
-err_pflag = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Verify_pflag %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [Init,err_Init] = Verify_Init(Init)
-err_Init = 1;
-if isempty(Init),
-    % Do nothing;
-elseif isstruct(Init),
-    [Wd,Wk] = size(Init.W);
-    [Md,Mk] = size(Init.M);
-    [Vd1,Vd2,Vk] = size(Init.V);
-    if Wk~=Mk | Wk~=Vk | Mk~=Vk,
-        disp('k in Init.W(1,k), Init.M(d,k) and Init.V(d,d,k) must equal!/n')
-        return
-    end
-    if Md~=Vd1 | Md~=Vd2 | Vd1~=Vd2,
-        disp('d in Init.W(1,k), Init.M(d,k) and Init.V(d,d,k) must equal!/n')
-        return
-    end
-else
-    disp('Init must be a structure: W(1,k), M(d,k), V(d,d,k) or []!');
-    return
-end
-err_Init = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Verify_Init %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [W,M,V] = Init_EM(X,k)
-[n,d] = size(X);
-[Ci,C] = kmeans(X,k,'Start','cluster', ...
-    'Maxiter',100, ...
-    'EmptyAction','drop', ...
-    'Display','off'); % Ci(nx1) - cluster indeices; C(k,d) - cluster centroid (i.e. mean)
-while sum(isnan(C))>0,
-    [Ci,C] = kmeans(X,k,'Start','cluster', ...
-        'Maxiter',100, ...
-        'EmptyAction','drop', ...
-        'Display','off');
-end
-M = C';
-Vp = repmat(struct('count',0,'X',zeros(n,d)),1,k);
-for i=1:n, % Separate cluster points
-    Vp(Ci(i)).count = Vp(Ci(i)).count + 1;
-    Vp(Ci(i)).X(Vp(Ci(i)).count,:) = X(i,:);
-end
-V = zeros(d,d,k);
-for i=1:k,
-    W(i) = Vp(i).count/n;
-    V(:,:,i) = cov(Vp(i).X(1:Vp(i).count,:));
-end
-%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Init_EM %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%
 
 function Plot_GM(X,k,W,M,V)
 [n,d] = size(X);
 if d>2,
-    disp('Can only plot 1 or 2 dimensional applications!/n');
+    disp('Can only plot 1 dimensional applications!/n');
     return
 end
 S = zeros(d,k);
@@ -229,69 +88,16 @@ Rmin = min(min(R1));
 Rmax = max(max(R2));
 R = [Rmin:0.001*(Rmax-Rmin):Rmax];
 clf, hold on
-if d==1,
     Q = zeros(size(R));
     for i=1:k,
         P = W(i)*normpdf(R,M(:,i),sqrt(V(:,:,i)));
         Q = Q + P;
-        plot(R,P,'r-'); grid on,
+        plot(R,P,'r-'); grid on
     end
     plot(R,Q,'k-');
     xlabel('X');
     ylabel('Probability density');
-else % d==2
-    plot(X(:,1),X(:,2),'r.');
-    for i=1:k,
-        Plot_Std_Ellipse(M(:,i),V(:,:,i));
-    end
-    xlabel('1^{st} dimension');
-    ylabel('2^{nd} dimension');
-    axis([Rmin Rmax Rmin Rmax])
-end
 title('Gaussian Mixture estimated by EM');
-%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Plot_GM %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%
 
-function Plot_Std_Ellipse(M,V)
-[Ev,D] = eig(V);
-d = length(M);
-if V(:,:)==zeros(d,d),
-    V(:,:) = ones(d,d)*eps;
-end
-iV = inv(V);
-% Find the larger projection
-P = [1,0;0,0];  % X-axis projection operator
-P1 = P * 2*sqrt(D(1,1)) * Ev(:,1);
-P2 = P * 2*sqrt(D(2,2)) * Ev(:,2);
-if abs(P1(1)) >= abs(P2(1)),
-    Plen = P1(1);
-else
-    Plen = P2(1);
-end
-count = 1;
-step = 0.001*Plen;
-Contour1 = zeros(2001,2);
-Contour2 = zeros(2001,2);
-for x = -Plen:step:Plen,
-    a = iV(2,2);
-    b = x * (iV(1,2)+iV(2,1));
-    c = (x^2) * iV(1,1) - 1;
-    Root1 = (-b + sqrt(b^2 - 4*a*c))/(2*a);
-    Root2 = (-b - sqrt(b^2 - 4*a*c))/(2*a);
-    if isreal(Root1),
-        Contour1(count,:) = [x,Root1] + M';
-        Contour2(count,:) = [x,Root2] + M';
-        count = count + 1;
-    end
-end
-Contour1 = Contour1(1:count-1,:);
-Contour2 = [Contour1(1,:);Contour2(1:count-1,:);Contour1(count-1,:)];
-plot(M(1),M(2),'k+');
-plot(Contour1(:,1),Contour1(:,2),'k-');
-plot(Contour2(:,1),Contour2(:,2),'k-');
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% End of Plot_Std_Ellipse %%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 

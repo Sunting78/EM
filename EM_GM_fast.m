@@ -97,7 +97,7 @@ Lo = 2*Ln;
 
 %%%% EM algorithm %%%%
 niter = 0;
-while (abs(100*(Ln-Lo)/Lo)>ltol) & (niter<=maxiter),
+while (abs(100*(Ln-Lo)/Lo)>ltol) & (niter<=maxiter)
     E = Expectation(X,k,W,M,V);     % E-step
     [W,M,V] = Maximization(X,k,E);  % M-step
     Lo = Ln;
